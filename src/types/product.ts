@@ -4,6 +4,7 @@ export interface ProductSearchItem {
   name: string;
   price: number;
   categoryName: string;
+  normalizationStatus?: 'NORMALIZED' | 'PARTIALLY_NORMALIZED' | 'FAILED';
   normalizedAttributes: Record<string, string>;
 }
 
