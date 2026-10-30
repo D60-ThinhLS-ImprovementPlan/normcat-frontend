@@ -16,12 +16,12 @@ import type { ProductDetail, IngestProductRequest } from '../types/product';
 
 const PRESETS: { title: string; desc: string; data: IngestProductRequest }[] = [
   {
-    title: 'MacBook Pro M3 (Đầy đủ Alias)',
-    desc: 'Các thuộc tính có alias đầy đủ trong từ điển chuẩn',
+    title: 'MacBook Pro M3 (Đầy đủ từ đồng nghĩa)',
+    desc: 'Các thuộc tính có từ đồng nghĩa tương ứng trong từ điển',
     data: {
       sku: 'MACBOOK-PRO-M3-16-512',
       name: 'Apple MacBook Pro 14 M3 16GB 512GB Space Gray',
-      categorySlug: 'laptop',
+      categoryId: 3, // Laptop
       price: 49990000,
       rawAttributes: {
         'Bộ nhớ RAM': '16 gig',
@@ -37,7 +37,7 @@ const PRESETS: { title: string; desc: string; data: IngestProductRequest }[] = [
     data: {
       sku: 'DELL-XPS-13-16-1TB',
       name: 'Dell XPS 13 9340 Core Ultra 7 16GB 1TB',
-      categorySlug: 'laptop',
+      categoryId: 3, // Laptop
       price: 42500000,
       rawAttributes: {
         'RAM': '16G',
@@ -48,12 +48,12 @@ const PRESETS: { title: string; desc: string; data: IngestProductRequest }[] = [
     },
   },
   {
-    title: 'Sản phẩm mới (Chưa có trong từ điển)',
-    desc: 'Thuộc tính lạ để kiểm tra cơ chế PARTIALLY_NORMALIZED',
+    title: 'Sản phẩm mới (Có thuộc tính lạ)',
+    desc: 'Thuộc tính chưa có trong từ điển để kiểm tra cơ chế phân loại',
     data: {
       sku: 'CUSTOM-PRO-TEST-01',
       name: 'Sản phẩm thử nghiệm chuẩn hóa một phần',
-      categorySlug: 'laptop',
+      categoryId: 3, // Laptop
       price: 15990000,
       rawAttributes: {
         'Bộ nhớ': '16GB',
@@ -64,10 +64,17 @@ const PRESETS: { title: string; desc: string; data: IngestProductRequest }[] = [
   },
 ];
 
+const CATEGORY_OPTIONS = [
+  { id: 3, name: 'Máy tính xách tay (Laptop)' },
+  { id: 2, name: 'Điện thoại thông minh' },
+  { id: 4, name: 'Thời trang & May mặc' },
+  { id: 1, name: 'Điện tử & Công nghệ (Gốc)' },
+];
+
 export const NormalizationStudioPage: React.FC = () => {
   const [sku, setSku] = useState<string>(PRESETS[0].data.sku);
   const [name, setName] = useState<string>(PRESETS[0].data.name);
-  const [categorySlug, setCategorySlug] = useState<string>(PRESETS[0].data.categorySlug);
+  const [categoryId, setCategoryId] = useState<number>(PRESETS[0].data.categoryId);
   const [price, setPrice] = useState<number>(PRESETS[0].data.price);
   const [rawAttributesText, setRawAttributesText] = useState<string>(
     JSON.stringify(PRESETS[0].data.rawAttributes, null, 2)
@@ -80,7 +87,7 @@ export const NormalizationStudioPage: React.FC = () => {
   const handleApplyPreset = (preset: typeof PRESETS[0]) => {
     setSku(`${preset.data.sku}-${Math.floor(100 + Math.random() * 900)}`);
     setName(preset.data.name);
-    setCategorySlug(preset.data.categorySlug);
+    setCategoryId(preset.data.categoryId);
     setPrice(preset.data.price);
     setRawAttributesText(JSON.stringify(preset.data.rawAttributes, null, 2));
     setResult(null);
@@ -97,13 +104,13 @@ export const NormalizationStudioPage: React.FC = () => {
       try {
         parsedRawAttributes = JSON.parse(rawAttributesText);
       } catch (jsonErr) {
-        throw new Error('Dữ liệu JSON thuộc tính thô không hợp lệ. Vui lòng kiểm tra lại cú pháp.');
+        throw new Error('Dữ liệu thông số kỹ thuật không đúng định dạng. Vui lòng kiểm tra lại.');
       }
 
       const request: IngestProductRequest = {
         sku: sku.trim(),
         name: name.trim(),
-        categorySlug: categorySlug.trim(),
+        categoryId: Number(categoryId),
         price: Number(price),
         rawAttributes: parsedRawAttributes,
       };
@@ -112,10 +119,14 @@ export const NormalizationStudioPage: React.FC = () => {
       setResult(res);
     } catch (err: any) {
       console.error('Normalization ingestion failed', err);
-      const msg =
-        err.response?.data?.message ||
-        err.message ||
-        'Có lỗi xảy ra khi gọi API Ingestion. Vui lòng kiểm tra lại backend.';
+      let msg = 'Có lỗi xảy ra khi gửi dữ liệu sản phẩm. Vui lòng thử lại.';
+      if (err.response?.data?.errors && Array.isArray(err.response.data.errors) && err.response.data.errors.length > 0) {
+        msg = err.response.data.errors.map((e: any) => `${e.field}: ${e.message}`).join(', ');
+      } else if (err.response?.data?.message) {
+        msg = err.response.data.message;
+      } else if (err.message) {
+        msg = err.message;
+      }
       setError(msg);
     } finally {
       setLoading(false);
@@ -129,14 +140,13 @@ export const NormalizationStudioPage: React.FC = () => {
         <div className="relative z-10 max-w-3xl space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/30 border border-indigo-400/30 text-xs font-semibold text-indigo-200">
             <Cpu className="w-3.5 h-3.5" />
-            <span>Deterministic 2-Phase Resolution Engine</span>
+            <span>Bộ máy Tự động Chuẩn hóa Dữ liệu</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Normalization Studio & Ingestion Simulator
+            Khu vực Thử nghiệm Chuẩn hóa Sản phẩm
           </h1>
           <p className="text-xs sm:text-sm text-indigo-200 leading-relaxed">
-            Thử nghiệm trực tiếp luồng Ingestion của <strong>NormCat</strong>: Nhập dữ liệu thô với các alias phong phú.
-            Bộ máy chuẩn hóa 2 pha (Key & Value Resolution) sẽ tự động làm sạch và ánh xạ vào cơ sở dữ liệu quan hệ với cơ chế lưu trữ kép.
+            Thử nghiệm quy trình tiếp nhận và làm sạch dữ liệu của <strong>NormCat</strong>: Khi người bán gửi thông số sản phẩm với cách viết tắt hoặc từ đồng nghĩa phong phú, hệ thống sẽ tự động đối chiếu từ điển để chuẩn hóa thuộc tính về tiêu chuẩn chung của sàn.
           </p>
         </div>
       </div>
@@ -168,20 +178,20 @@ export const NormalizationStudioPage: React.FC = () => {
 
       {/* Main Grid: Input Form vs Output Result */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Left Column: Ingestion Form */}
+        {/* Left Column: Input Form */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Database className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-sm font-bold text-slate-900">1. Dữ liệu đầu vào từ Vendor / Crawler</h3>
+              <h3 className="text-sm font-bold text-slate-900">1. Thông tin từ Người bán / Đối tác</h3>
             </div>
-            <span className="text-[11px] font-mono text-slate-400">POST /api/v1/products</span>
+            <span className="text-[11px] text-slate-400">Đăng sản phẩm mới</span>
           </div>
 
           <form onSubmit={handleRunNormalization} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-slate-700 block mb-1">Mã SKU</label>
+                <label className="text-xs font-medium text-slate-700 block mb-1">Mã sản phẩm (SKU)</label>
                 <input
                   type="text"
                   value={sku}
@@ -192,14 +202,18 @@ export const NormalizationStudioPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-700 block mb-1">Danh mục Slug</label>
-                <input
-                  type="text"
-                  value={categorySlug}
-                  onChange={(e) => setCategorySlug(e.target.value)}
-                  required
-                  className="w-full text-xs font-mono px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
+                <label className="text-xs font-medium text-slate-700 block mb-1">Danh mục sản phẩm</label>
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(Number(e.target.value))}
+                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                >
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -228,9 +242,9 @@ export const NormalizationStudioPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-medium text-slate-700">
-                  Thuộc tính thô dạng JSON (`raw_attributes`)
+                  Thông số kỹ thuật thô của sản phẩm
                 </label>
-                <span className="text-[10px] text-slate-400">JSONB Key-Value</span>
+                <span className="text-[10px] text-slate-400">Các cách gọi tùy ý</span>
               </div>
               <textarea
                 rows={7}
@@ -249,27 +263,27 @@ export const NormalizationStudioPage: React.FC = () => {
               {loading ? (
                 <>
                   <RotateCcw className="w-4 h-4 animate-spin" />
-                  <span>Đang xử lý Normalization Engine...</span>
+                  <span>Đang phân tích & chuẩn hóa thuộc tính...</span>
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4 fill-white" />
-                  <span>Kích hoạt Chuẩn hóa & Lưu trữ kép</span>
+                  <span>Tiến hành Phân tích & Chuẩn hóa</span>
                 </>
               )}
             </button>
           </form>
         </div>
 
-        {/* Right Column: Execution Result & Dual-Storage Breakdown */}
+        {/* Right Column: Execution Result */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-sm font-bold text-slate-900">2. Kết quả từ Database sau Chuẩn hóa</h3>
+              <h3 className="text-sm font-bold text-slate-900">2. Kết quả sau khi Chuẩn hóa</h3>
             </div>
             {result && (
-              <span className="text-[11px] font-mono text-slate-500">ID: #{result.id}</span>
+              <span className="text-[11px] font-mono text-slate-500">Mã: #{result.id}</span>
             )}
           </div>
 
@@ -277,7 +291,7 @@ export const NormalizationStudioPage: React.FC = () => {
             <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs space-y-1">
               <div className="font-bold flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
-                <span>Lỗi Ingestion:</span>
+                <span>Không thể tiếp nhận sản phẩm:</span>
               </div>
               <p className="pl-5 text-rose-600">{error}</p>
             </div>
@@ -287,7 +301,7 @@ export const NormalizationStudioPage: React.FC = () => {
             <div className="py-16 text-center space-y-3 text-slate-400">
               <Cpu className="w-12 h-12 mx-auto text-slate-300 stroke-1" />
               <div className="text-xs">
-                Nhấn <strong>"Kích hoạt Chuẩn hóa"</strong> ở bên trái để theo dõi luồng giải quyết thuộc tính 2 pha.
+                Nhấn <strong>"Tiến hành Phân tích & Chuẩn hóa"</strong> ở bên trái để theo dõi quy trình làm sạch dữ liệu.
               </div>
             </div>
           )}
@@ -302,28 +316,28 @@ export const NormalizationStudioPage: React.FC = () => {
                     {result.normalizationStatus === 'NORMALIZED' ? (
                       <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>NORMALIZED (100% Thuộc tính khớp)</span>
+                        <span>Đã chuẩn hóa 100%</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold border border-amber-200">
                         <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                        <span>{result.normalizationStatus} (Một phần)</span>
+                        <span>Chuẩn hóa một phần</span>
                       </span>
                     )}
                   </div>
                 </div>
 
                 <div className="text-right">
-                  <span className="text-[11px] text-slate-500 block">Optimistic Version</span>
-                  <span className="text-xs font-mono font-bold text-slate-800">v{result.version}</span>
+                  <span className="text-[11px] text-slate-500 block">Danh mục</span>
+                  <span className="text-xs font-semibold text-slate-800">{result.categoryName}</span>
                 </div>
               </div>
 
-              {/* 2-Phase Resolution Breakdown */}
+              {/* Resolution Breakdown */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
                   <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Chi tiết ánh xạ bảng quan hệ (`product_attribute_values`):</span>
+                  <span>Các thuộc tính đã được đưa về chuẩn của sàn:</span>
                 </div>
 
                 {result.normalizedAttributes && result.normalizedAttributes.length > 0 ? (
@@ -337,32 +351,40 @@ export const NormalizationStudioPage: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {result.normalizedAttributes.map((attr, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/60">
-                            <td className="py-2 px-3 font-mono text-slate-600">{attr.attributeCode}</td>
-                            <td className="py-2 px-3 font-medium text-slate-800">{attr.attributeName}</td>
-                            <td className="py-2 px-3 text-right">
-                              <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                                {attr.canonicalValue}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
+                        {result.normalizedAttributes.map((attr, idx) => {
+                          const displayVal =
+                            attr.attributeDisplayValue ||
+                            attr.attributeValueCode ||
+                            attr.canonicalValue ||
+                            '';
+
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50/60">
+                              <td className="py-2 px-3 font-mono text-slate-600">{attr.attributeCode}</td>
+                              <td className="py-2 px-3 font-medium text-slate-800">{attr.attributeName}</td>
+                              <td className="py-2 px-3 text-right">
+                                <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                                  {displayVal}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 ) : (
                   <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
-                    Chưa có thuộc tính nào được ánh xạ vào bảng quan hệ.
+                    Chưa có thuộc tính nào được đưa về chuẩn của sàn.
                   </div>
                 )}
               </div>
 
-              {/* Raw Snapshot in JSONB */}
+              {/* Raw Snapshot */}
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
                   <FileJson className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Dữ liệu lưu trữ bất biến (JSONB Snapshot):</span>
+                  <span>Dữ liệu gốc của người bán (Lưu giữ để đối soát):</span>
                 </div>
                 <pre className="text-[11px] font-mono bg-slate-900 text-emerald-400 p-3 rounded-xl overflow-x-auto max-h-36 leading-relaxed">
                   {JSON.stringify(result.rawAttributes, null, 2)}
@@ -372,7 +394,7 @@ export const NormalizationStudioPage: React.FC = () => {
               <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100 text-[11px] text-indigo-900 flex items-start gap-2">
                 <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <span>
-                  Sản phẩm vừa tạo đã sẵn sàng hiển thị tại trang <strong>Catalog & Facets</strong> và có thể tìm kiếm theo từng thuộc tính chuẩn vừa được ánh xạ!
+                  Sản phẩm vừa tạo đã sẵn sàng hiển thị tại trang <strong>Khám phá sản phẩm</strong> và có thể tìm kiếm theo từng thuộc tính chuẩn vừa được ánh xạ!
                 </span>
               </div>
             </div>

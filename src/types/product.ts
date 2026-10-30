@@ -11,8 +11,11 @@ export interface NormalizedProductAttributeResponse {
   attributeId: number;
   attributeCode: string;
   attributeName: string;
+  dataType?: string;
   attributeValueId: number;
-  canonicalValue: string;
+  attributeValueCode?: string;
+  attributeDisplayValue?: string;
+  canonicalValue?: string;
 }
 
 export interface ProductDetail {
@@ -34,7 +37,7 @@ export interface ProductDetail {
 export interface IngestProductRequest {
   sku: string;
   name: string;
-  categorySlug: string;
+  categoryId: number;
   price: number;
   rawAttributes: Record<string, any>;
 }

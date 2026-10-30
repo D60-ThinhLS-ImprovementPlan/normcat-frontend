@@ -31,12 +31,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
               {product?.normalizationStatus === 'NORMALIZED' ? (
                 <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
                   <CheckCircle2 className="w-3 h-3" />
-                  <span>NORMALIZED</span>
+                  <span>Đã chuẩn hóa 100%</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">
                   <AlertTriangle className="w-3 h-3" />
-                  <span>{product?.normalizationStatus}</span>
+                  <span>Chuẩn hóa một phần</span>
                 </span>
               )}
             </div>
@@ -55,7 +55,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
         <div className="p-6 overflow-y-auto space-y-6">
           {loading ? (
             <div className="py-12 text-center text-slate-500 animate-pulse">
-              Đang tải chi tiết lưu trữ kép (Dual Storage)...
+              Đang tải thông tin chi tiết sản phẩm...
             </div>
           ) : product ? (
             <>
@@ -67,42 +67,43 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
                 </div>
                 <div>
                   <span className="text-slate-400 block mb-0.5">Trạng thái kho</span>
-                  <span className="font-semibold text-emerald-600">{product.status}</span>
+                  <span className="font-semibold text-emerald-600">
+                    {product.status === 'ACTIVE' ? 'Đang kinh doanh' : product.status}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block mb-0.5">Optimistic Lock</span>
-                  <span className="font-mono">v{product.version}</span>
+                  <span className="text-slate-400 block mb-0.5">Mã danh mục</span>
+                  <span className="font-medium text-slate-800">#{product.categoryId}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block mb-0.5">Thời gian ingest</span>
+                  <span className="text-slate-400 block mb-0.5">Ngày đăng tải</span>
                   <span>{new Date(product.createdAt).toLocaleDateString('vi-VN')}</span>
                 </div>
               </div>
 
-              {/* Dual-Storage Architecture Visualizer */}
+              {/* Data Comparison Section */}
               <div className="border border-indigo-100 rounded-xl p-4 bg-gradient-to-br from-indigo-50/40 via-white to-violet-50/30">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Layers className="w-4 h-4 text-indigo-600" />
                     <h3 className="text-sm font-bold text-slate-900">
-                      Dual-Storage Pattern (Lưu trữ kép kiểm toán & tìm kiếm)
+                      Đối chiếu: Dữ liệu gốc & Thuộc tính đã Chuẩn hóa
                     </h3>
                   </div>
-                  <span className="text-[11px] text-indigo-600 font-medium">PostgreSQL 16 Engine</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Left: Raw Attributes JSONB */}
+                  {/* Left: Raw Attributes */}
                   <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-2xs">
                     <div className="flex items-center gap-1.5 pb-2 mb-2 border-b border-slate-100 text-xs font-semibold text-slate-800">
                       <FileJson className="w-3.5 h-3.5 text-amber-500" />
-                      <span>1. Raw JSONB Snapshot (Bảo toàn gốc)</span>
+                      <span>1. Thông tin gốc từ Nhà bán hàng (Seller)</span>
                     </div>
                     <pre className="text-[11px] font-mono bg-slate-900 text-emerald-400 p-3 rounded-md overflow-x-auto max-h-48 leading-relaxed">
                       {JSON.stringify(product.rawAttributes, null, 2)}
                     </pre>
-                    <p className="text-[10px] text-slate-400 mt-2">
-                      Lưu nguyên bản dữ liệu thô của seller, không mất mát dù từ điển chưa hỗ trợ.
+                    <p className="text-[11px] text-slate-500 mt-2">
+                      Lưu giữ trọn vẹn mô tả kỹ thuật ban đầu của người bán để đối soát và bảo toàn dữ liệu.
                     </p>
                   </div>
 
@@ -110,35 +111,43 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
                   <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-2xs">
                     <div className="flex items-center gap-1.5 pb-2 mb-2 border-b border-slate-100 text-xs font-semibold text-slate-800">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>2. Relational Attributes (Faceted Index)</span>
+                      <span>2. Thuộc tính chuẩn của Sàn Thương mại</span>
                     </div>
 
                     {product.normalizedAttributes && product.normalizedAttributes.length > 0 ? (
                       <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {product.normalizedAttributes.map((attr, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between p-2 rounded-md bg-slate-50 border border-slate-100 text-xs"
-                          >
-                            <div>
-                              <span className="font-semibold text-slate-800">{attr.attributeName}</span>
-                              <span className="text-[10px] text-slate-400 ml-1.5 font-mono">
-                                ({attr.attributeCode})
+                        {product.normalizedAttributes.map((attr, idx) => {
+                          const displayVal =
+                            attr.attributeDisplayValue ||
+                            attr.attributeValueCode ||
+                            attr.canonicalValue ||
+                            '';
+
+                          return (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-2 rounded-md bg-slate-50 border border-slate-100 text-xs"
+                            >
+                              <div>
+                                <span className="font-semibold text-slate-800">{attr.attributeName}</span>
+                                <span className="text-[10px] text-slate-400 ml-1.5 font-mono">
+                                  ({attr.attributeCode})
+                                </span>
+                              </div>
+                              <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                                {displayVal}
                               </span>
                             </div>
-                            <span className="font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                              {attr.canonicalValue}
-                            </span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="text-center py-6 text-xs text-slate-400">
-                        Chưa có thuộc tính nào được ánh xạ chuẩn hóa.
+                        Chưa có thuộc tính nào được đưa về chuẩn của sàn.
                       </div>
                     )}
-                    <p className="text-[10px] text-slate-400 mt-2">
-                      Ánh xạ vào bảng quan hệ với Composite Index phục vụ bộ lọc tìm kiếm tức thì.
+                    <p className="text-[11px] text-slate-500 mt-2">
+                      Đã được làm sạch và quy đổi về từ điển chuẩn để người mua dễ dàng lọc và so sánh.
                     </p>
                   </div>
                 </div>

@@ -75,7 +75,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onViewDetails
           onClick={() => onViewDetails(product.id)}
           className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 group-hover:translate-x-0.5 transition-all"
         >
-          <span>Lưu trữ kép</span>
+          <span>So sánh dữ liệu</span>
           <ArrowUpRight className="w-3.5 h-3.5" />
         </button>
       </div>

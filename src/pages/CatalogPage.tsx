@@ -91,7 +91,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onBackendStatusChange 
       onBackendStatusChange?.(true);
     } catch (err: any) {
       console.error('Search failed', err);
-      setError('Không thể kết nối đến máy chủ tìm kiếm. Vui lòng kiểm tra backend Docker.');
+      setError('Không thể kết nối đến máy chủ. Vui lòng thử lại sau.');
       onBackendStatusChange?.(false);
     } finally {
       setSearchLoading(false);
