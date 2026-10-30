@@ -27,7 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onTabChange }) => {
                 </span>
               </div>
               <p className="text-xs text-slate-500 hidden sm:block">
-                E-Commerce Catalog & Attribute Normalization
+                Product Catalog and Data Standardization
               </p>
             </div>
           </div>
